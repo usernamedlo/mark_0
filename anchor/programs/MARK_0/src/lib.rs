@@ -1,70 +1,84 @@
-#![allow(clippy::result_large_err)]
-
 use anchor_lang::prelude::*;
 
-declare_id!("coUnmi3oBUtwtd9fjeAvSsJssXh5A5xyPbhpewyzRVF");
+declare_id!("6fG3133kjXzmcQ4TEM5FLib2DzSaYo2c6pfQ8aWQgq3a");
 
 #[program]
-pub mod MARK_0 {
+pub mod mark_0 {
     use super::*;
 
-  pub fn close(_ctx: Context<CloseMARK0>) -> Result<()> {
-    Ok(())
-  }
+    pub fn create_entry(ctx: Context<CreateEntry>, title: String, message: String) -> Result<()> {
+        let journal_entry = &mut ctx.accounts.journal_entry;
+        journal_entry.owner = ctx.accounts.owner.key();
+        journal_entry.title = title;
+        journal_entry.message = message;
+        Ok(())
+    }
 
-  pub fn decrement(ctx: Context<Update>) -> Result<()> {
-    ctx.accounts.MARK_0.count = ctx.accounts.MARK_0.count.checked_sub(1).unwrap();
-    Ok(())
-  }
+    pub fn update_entry(ctx: Context<UpdateEntry>, _title: String, message: String) -> Result<()> {
+        let journal_entry = &mut ctx.accounts.journal_entry;
+        journal_entry.message = message;
+        Ok(())
+    }
 
-  pub fn increment(ctx: Context<Update>) -> Result<()> {
-    ctx.accounts.MARK_0.count = ctx.accounts.MARK_0.count.checked_add(1).unwrap();
-    Ok(())
-  }
-
-  pub fn initialize(_ctx: Context<InitializeMARK0>) -> Result<()> {
-    Ok(())
-  }
-
-  pub fn set(ctx: Context<Update>, value: u8) -> Result<()> {
-    ctx.accounts.MARK_0.count = value.clone();
-    Ok(())
-  }
+    pub fn delete_entry(_ctx: Context<DeleteEntry>, _title: String) -> Result<()> {
+        Ok(())
+    }
 }
-
-#[derive(Accounts)]
-pub struct InitializeMARK0<'info> {
-  #[account(mut)]
-  pub payer: Signer<'info>,
-
-  #[account(
-  init,
-  space = 8 + MARK0::INIT_SPACE,
-  payer = payer
-  )]
-  pub MARK_0: Account<'info, MARK0>,
-  pub system_program: Program<'info, System>,
-}
-#[derive(Accounts)]
-pub struct CloseMARK0<'info> {
-  #[account(mut)]
-  pub payer: Signer<'info>,
-
-  #[account(
-  mut,
-  close = payer, // close account and return lamports to payer
-  )]
-  pub MARK_0: Account<'info, MARK0>,
-}
-
-#[derive(Accounts)]
-pub struct Update<'info> {
-  #[account(mut)]
-  pub MARK_0: Account<'info, MARK0>,
-}
-
 #[account]
 #[derive(InitSpace)]
-pub struct MARK0 {
-  count: u8,
+pub struct JournalEntryState {
+    pub owner: Pubkey,
+    #[max_len(20)]
+    pub title: String,
+    #[max_len(200)]
+    pub message: String,
+    pub entry_id: u64,
+}
+
+#[derive(Accounts)]
+#[instruction(title: String)]
+pub struct CreateEntry<'info> {
+    #[account(
+        init,
+        seeds = [title.as_bytes(), owner.key().as_ref()],
+        bump,
+        payer = owner,
+        space = 8 + JournalEntryState::INIT_SPACE
+    )]
+    pub journal_entry: Account<'info, JournalEntryState>,
+    #[account(mut)]
+    pub owner: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(title: String)]
+pub struct UpdateEntry<'info> {
+    #[account(
+        mut,
+        seeds = [title.as_bytes(), owner.key().as_ref()],
+        bump,
+        realloc = 8 + JournalEntryState::INIT_SPACE,
+        realloc::payer = owner,
+        realloc::zero = false
+    )]
+    pub journal_entry: Account<'info, JournalEntryState>,
+    #[account(mut)]
+    pub owner: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(title: String)]
+pub struct DeleteEntry<'info> {
+    #[account(
+        mut,
+        seeds = [title.as_bytes(), owner.key().as_ref()],
+        bump,
+        close = owner
+    )]
+    pub journal_entry: Account<'info, JournalEntryState>,
+    #[account(mut)]
+    pub owner: Signer<'info>,
+    pub system_program: Program<'info, System>,
 }

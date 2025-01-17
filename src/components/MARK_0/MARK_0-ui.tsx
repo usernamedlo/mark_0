@@ -1,22 +1,56 @@
 'use client'
 
+import { useWallet } from '@solana/wallet-adapter-react'
 import { Keypair, PublicKey } from '@solana/web3.js'
-import { useMemo } from 'react'
-import { ellipsify } from '../ui/ui-layout'
+import { useMemo, useState } from 'react'
 import { ExplorerLink } from '../cluster/cluster-ui'
+import { ellipsify } from '../ui/ui-layout'
 import { useMARK0Program, useMARK0ProgramAccount } from './MARK_0-data-access'
 
 export function MARK0Create() {
-  const { initialize } = useMARK0Program()
+  const { createEntry } = useMARK0Program()
+  const { publicKey } = useWallet()
+  const [title, setTitle] = useState('')
+  const [message, setMessage] = useState('')
+
+  const isFormValid = title.trim() !== '' && message.trim() !== '';
+
+  const handleSubmit = () => {
+    if (publicKey && isFormValid) {
+      createEntry.mutateAsync({ title, message, owner: publicKey });
+    }
+  };
+
+
+  if (!publicKey) {
+    return <p> Connect your Wallet </p>
+  }
 
   return (
-    <button
-      className="btn btn-xs lg:btn-md btn-primary"
-      onClick={() => initialize.mutateAsync(Keypair.generate())}
-      disabled={initialize.isPending}
-    >
-      Create {initialize.isPending && '...'}
-    </button>
+    <div>
+      <input
+        type="text"
+        placeholder="Title"
+        value={title}
+        onChange={e => setTitle(e.target.value)}
+        className="input input-bordered w-full max-w-xs"
+      />
+      <textarea
+        placeholder="Message"
+        value={message}
+        onChange={e => setMessage(e.target.value)}
+        className="textarea textarea-bordered w-full max-w-xs"
+      />
+      <br></br>
+      <button
+        type="button"
+        className="btn btn-xs lg:btn-md btn-primary"
+        onClick={handleSubmit}
+        disabled={createEntry.isPending || !isFormValid}
+      >
+        Create Journal Entry {createEntry.isPending && "..."}
+      </button>
+    </div>
   )
 }
 

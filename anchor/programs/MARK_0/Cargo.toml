@@ -10,6 +10,7 @@ name = "MARK_0"
 
 [features]
 default = []
+anchor-debug = []
 cpi = ["no-entrypoint"]
 no-entrypoint = []
 no-idl = []

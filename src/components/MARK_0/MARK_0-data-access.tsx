@@ -10,6 +10,12 @@ import { useCluster } from '../cluster/cluster-data-access'
 import { useAnchorProvider } from '../solana/solana-provider'
 import { useTransactionToast } from '../ui/ui-layout'
 
+interface EntryArgs {
+  owner: PublicKey
+  title: string
+  message: string
+}
+
 export function useMARK0Program() {
   const { connection } = useConnection()
   const { cluster } = useCluster()
@@ -28,11 +34,19 @@ export function useMARK0Program() {
     queryFn: () => connection.getParsedAccountInfo(programId),
   })
 
-  const initialize = useMutation({
-    mutationKey: ['MARK_0', 'initialize', { cluster }],
-    mutationFn: (keypair: Keypair) =>
-      program.methods.initialize().accounts({ MARK_0: keypair.publicKey }).signers([keypair]).rpc(),
-    onSuccess: (signature) => {
+  const createEntry = useMutation<EntryArgs, Error, EntryArgs>({
+    mutationKey: ['MARK_0', 'create', { cluster }],
+    mutationFn: async ({ title, message, owner }) => {
+      const [mark0EntryAddress] = await PublicKey.findProgramAddressSync(
+        [Buffer.from(title), owner.toBuffer()],
+        programId
+      );
+
+      return program.methods.createEntry(title, message).accounts({
+        journalEntry: mark0EntryAddress,
+      }).rpc();
+    },
+    onSuccess: signature => {
       transactionToast(signature)
       return accounts.refetch()
     },
@@ -44,7 +58,7 @@ export function useMARK0Program() {
     programId,
     accounts,
     getProgramAccount,
-    initialize,
+    createEntry,
   }
 }
 
